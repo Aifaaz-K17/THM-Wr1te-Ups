@@ -86,4 +86,3 @@ If you enjoyed this room, you can easily sink much deeper down the rabbit hole. 
 
 ---
 
-# Special thanks! Please take your time with task #3 and don't forget to read your descriptions!
