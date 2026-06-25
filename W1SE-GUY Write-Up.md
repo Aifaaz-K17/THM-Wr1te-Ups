@@ -1,84 +1,90 @@
-W1seGuy TryHackMe Walkthrough: It's As Simple As Can Be!
+# TryHackMe — W1seGuy | Hint-Based Write-Up
 
-For new people to cybersecurity or cryptography, encryption rooms may seem a bit daunting at first. In this walkthrough, we are going to be simplifying the W1seGuy room on TryHackMe using the most basic of terms. No complex math needed!
+**Difficulty:** Easy | **Category:** Cryptography
+**Room link:** https://tryhackme.com/room/w1seguy
 
---
-The Task
-
-Upon connection to the target, we're met with a network port to which we can connect. Upon connection, we're given a huge string of random characters and numbers (a Hexadecimal string) that are explained as follows: "Here is an encrypted message. If you can find the 5-character password (key) it's been encrypted with, I'll give you your prize."
+*Same deal as before — this is a nudge, not a shortcut. If you're reading this without having tried the room first, go try it. You'll get more out of it.*
 
 ---
 
-The Basic Idea: How XOR works.
+## What's the Room About
 
-The server is using a very common digital form of locking known as an XOR cipher.
+The tagline on the room page is a hint in itself: *"A w1se guy 0nce said, the answer is usually as plain as day."* Read that again after you solve it and it'll make you laugh a little.
 
-XOR works a bit like a very specific light switch:
+You're given two things: a Python source file, and a server running on port 1337. The server sends you an XOR-encrypted string in hex and then asks you for the encryption key. Give it the right key, and you get flag 2. Flag 1 is hiding in the encrypted string itself, once you actually decrypt it.
 
-*   If we take our secret message (Plaintext) and "flip" it using a secret password (Key), it is converted into incomprehensible garbage (Ciphertext).
-*   The beautiful part of XOR is that it is completely reversible. If we take that unreadable garbage (Ciphertext) and flip it again using the same Key, we are left with our original message again!
+The whole room is built around one concept: XOR encryption. If you've never encountered XOR before, that's fine — but before you touch anything else, take ten minutes to understand what XOR actually does. Not just "it's a bitwise operator" but *why* it's so useful for encryption and, crucially, why it's trivially breakable under certain conditions. That understanding is what makes the rest click.
 
-The flaw in the plan: A Known-Plaintext Attack
+## Step 1 — Actually read the source code
 
-Normally, breaking encryption would be nearly impossible without knowing the password. We are given a massive hint, though: We know what the message starts with.
+Download the Python file from Task 1 and open it. Don't skim it — read it properly.
 
-Every TryHackMe flag starts with: THM{.
+Three things you need to pull out of it:
 
-Because of how XOR math works, if we take the encrypted gibberish and combine it with our known plain text (THM{), we can reverse the encryption and get our password! This type of attack is called a Known-Plaintext Attack.
+First, what is the key? How long is it, and how is it generated? Pay attention to the character set.
 
----
+Second, how exactly does the encryption work? Look at the line where the flag gets XOR'd with the key. Notice that the key is shorter than the flag — so what does the code do to handle that? That detail matters a lot.
 
-Step-by-Step Instructions
+Third, what does the server actually send you, and in what format? Hex? Raw bytes? This affects how you work with it later.
 
-Step 1: Connecting to the Target Machine
-
-We will use the netcat (nc) tool within our Linux terminal to make a live connection to the room's server. We will use the following command, substituting the placeholder with your target IP:
-
-``bash
-nc <TARGET_IP> 1337
-The server immediately responds with a very long string encoded in Hexadecimal. Keep this terminal window open.
+Once you understand those three things, you're already halfway there. The source code is the solution — it tells you everything you need to break it. That's by design.
 
 ---
 
-Step 2: Unlocking the Secret Key
+## Step 2 — Connect to the Server
 
-Instead of writing our own scripts, we'll be using an online tool called CyberChef (sometimes referred to as the cyber Swiss-Army knife).
+Use netcat to hit port 1337 on the machine IP. The server will spit out a hex string and ask for the key.
 
-1.  Copy the first 8 characters of the string that the server gave you. (8 hex characters are equivalent to the first 4 letters of the encrypted message.)
-2.  Go to the CyberChef website.
-3.  Paste these 8 characters into the Input box (the top right box).
-4.  Search for From Hex on the left-hand menu, and drag it into the middle box. This removes the basic formatting.
-5.  Now, search for the XOR operation, and drag it into the middle box below the previous operation.
-6.  In the settings that pop up for the XOR operation:
-    *   Set the Key Type dropdown to UTF-8.
-    *   In the box that appears, type in our known starting text: THM{.
+Copy that hex string somewhere. You're going to need it.
 
-7.  The Output box will immediately display the first 4 characters of the server's password!
+Don't guess the key at random. You don't have to.
 
 ---
 
-Step 3: Finding the Last Character
+## Step 3 — The Core Insight (Don't Skip This)
 
-The server claims the password is 5 characters long, but we've only revealed the first 4. We need to find the 5th character.
+Here's the thing about XOR that makes this challenge solvable. If you XOR something with a key to encrypt it, you can XOR the encrypted result with the *same key* to get the original back. That's not a bug, it's just how XOR works mathematically.
 
-1.  Clear the Input box on CyberChef, and paste the full, long string of Hex characters back into it.
-2.  Go back to the XOR box in the middle section.
-3.  In the key box, type the 4 characters we found in Step 2.
-4.  Remove the THM{ that you have used earlier and only type the 4 characters
-5.  After typing these 4 characters, simply start typing random keyboard characters (letters, numbers, etc.). The 5th character, when correctly entered, will cause the entire gibberish to become legible English text, starting with THM{`.
+Now here's the part that breaks this encryption scheme wide open: you already know part of the plaintext.
 
-Congratulations! You've cracked the cipher. The legible text that appears in the Output box is Flag 1.
+Every THM flag starts the same way. And the key in this challenge is only 5 characters long. So even before you know anything else, you can figure out several characters of the key immediately — just by XOR-ing the beginning of the encrypted hex with the characters you *know* must be at the start of the flag.
+
+Work through that logic slowly if it doesn't land immediately. Write it out on paper if you need to. Once you see why it works, the rest is just execution.
+
+You'll recover most of the key this way. Not all of it — you'll be one character short. But think about what you know about the *end* of a THM flag too. That last character isn't a mystery either.
 
 ---
 
-Step 4: Retrieving Flag 2
+## Step 4 — Two Ways to Finish This
 
-Now that we know the 5-character secret password:
+Once you understand the approach, you've got options for actually executing it.
 
-1.  Go back to the terminal window where we're still connected to the server.
-2.  Type or paste the exact 5-character password into the prompt.
-3.  Press Enter.
+**CyberChef** is the easiest if you want to do this visually and interactively. It has an XOR operation built in. You can paste your hex string in, set the key to what you know so far, and play with it until the output starts looking like readable text. This is a good way to verify your thinking before you automate anything.
 
-The server will acknowledge that we've cracked it and display Flag 2 directly to your terminal.
+**Python** is the cleaner approach if you want to do it properly. You've already got the source code as a reference — writing a short script that recovers the key and decrypts the flag is genuinely good practice. It doesn't need to be long. You're looking at maybe 20-30 lines if you write it cleanly.
 
-You can now submit both flags to the room page to claim completion!
+Either way works. If you're still learning, try CyberChef first just to see what's happening, then go back and write the Python version so you actually understand each step.
+
+---
+
+## Step 5 — Submit and Get Flag 2
+
+Once you have the key, send it back to the server. If you've got the right one, the server will hand you flag 2.
+
+Flag 1 you should already have at this point — it's the decrypted version of the hex string the server gave you.
+
+---
+
+## The Bit Worth Actually Thinking About
+
+This room is flagged as "easy" and honestly, once you get the XOR insight, it is. But don't let that make you dismiss what it's teaching.
+
+XOR encryption by itself is genuinely weak for exactly the reason this room demonstrates — if you know *anything* about the plaintext, you can start recovering the key. This is called a **known-plaintext attack**, and it's not some exotic theoretical thing. It's why nobody should be rolling their own encryption with XOR and a short static key, and it's why CTF challenges love using it as a teaching tool.
+
+The bigger lesson: encryption schemes that look secure on the surface can fall apart completely the moment an attacker has even a tiny foothold of known data. And in practice, attackers often do — because formats, headers, and flag conventions give structure away for free.
+
+If this room made you curious about cryptography properly, the rabbit hole is deep and worth going down. There's a reason crypto is its own discipline.
+
+---
+
+Good luck. The "aha" moment when the XOR logic clicks is genuinely satisfying — give yourself the chance to reach it on your own.
